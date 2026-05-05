@@ -1,0 +1,191 @@
+from __future__ import annotations
+import random
+from collections import deque
+
+import numpy as np
+from scipy.spatial import Voronoi
+
+from .territory import Territory
+
+
+class GameMap:
+    """
+    основа карты игры
+    генерация территории через алгоритм Вороного,
+    строит граф смежности и раздает стартовые позиции
+    """
+
+    def __init__(self, widht: int, height: int, 
+                 chunk_count: int, players_count: int):
+        self.widht = widht
+        self.height = height
+        self.chunk_count = chunk_count
+        self.territories: dict[int, Territory] = {}
+        self._generate(chunk_count)
+        self._start_possisions(players_count)
+
+
+    def _generate(self, n: int) -> None:
+        """
+        генерирует n случайных точек
+        применяет релаксацию Ллойда, чтобы точки не были близко друг к другу
+        стоит диаграмму Вороного через scipy
+        обрезает регионы по границам
+        стоит граф смежности
+        """
+
+        indent = 40
+        points = np.array([
+            [random.uniform(indent, self.widht - indent),
+            random.uniform(indent, self.height - indent)] for _ in range(n)
+        ])
+
+        point = self._lloyd_relax(points, indent)
+        mirrored = self._mirror_points(points)
+        all_points = np.vstack([points, mirrored])
+
+        vor = Voronoi(all_points)
+
+        for i in range(n):
+            reg_index = vor.point_region[i]
+            region = vor.regions[reg_index]
+
+            if -1 in region or len(region) == 0:
+                continue
+
+            vertices = [tuple(vor.vertices[i]) for i in region]
+            clipped = self._clip_polygon(vertices)
+
+            if len(clipped) < 3:
+                continue
+
+            ter = Territory(id=i, center=tuple(point[i]), vertices=clipped)
+            self.territories[i] = ter
+        
+        self._build_neigh(vor, n)
+
+    def _lloyd_relax(self, points: np.array, indent: int) -> np.array:
+        mirrored = self._mirror_points(points)
+        all_pts = np.vstack([points, mirrored])
+        vor = Voronoi(all_pts)
+
+        new_points = points.copy()
+        n = len(points)
+        for i in range(n):
+            region_index = vor.point_region[i]
+            region = vor.regions[region_index]
+
+            if -1 in region or not region:
+                continue
+            verts = vor.vertices[region]
+            centroid = verts.mean(axis=0)
+            centroid[0] = np.clip(centroid[0], indent, self.widht - indent)
+            centroid[1] = np.clip(centroid[1], indent, self.height - indent)
+            new_points[i] = centroid
+
+        return new_points
+    
+    def _mirror_points(self, points: np.ndarray) -> np.ndarray:
+        """
+        отражает все точки на 4 стороны, 
+        чтобы алгоритм Вороного работал корректно
+        """
+        w, h = self.widht, self.height
+        return np.vstack([
+            np.column_stack([-points[:, 0], points[:, 1]]),
+            np.column_stack([2 * w - points[:, 0], points[:, 1]]),
+            np.column_stack([points[:, 0], -points[:, 1]]),
+            np.column_stack([points[:, 0], 2 * h - points[:, 1]])
+        ])
+    
+    def _clip_polygon(self, vertices: list[tuple]) -> list[tuple]:
+        """
+        алгоритм Сазерленда-Хогмана: обрезка по прямоугольнику экрана
+        """
+
+        def inside(p, edge):
+            x, y = p
+
+            if edge == "left":   return x >= 0
+            if edge == "right":  return x <= self.widht
+            if edge == "top":    return y >= 0
+            if edge == "bottom": return y <= self.height
+
+        def intersect(p1, p2, edge):
+            x1, y1 = p1; x2, y2 = p2
+            dx, dy = x2 - x1, y2 - y1
+            if edge == "left":
+                t = (0 - x1) / dx if dx else 0
+            elif edge == "right":
+                t = (self.widht - x1) / dx if dx else 0
+            elif edge == "top":
+                t = (0 - y1) / dy if dy else 0
+            else:
+                t = (self.height - y1) / dy if dy else 0
+            return (x1 + t * dx, y1 + t * dy)
+ 
+        output = list(vertices)
+        for edge in ("left", "right", "top", "bottom"):
+            if not output:
+                break
+            inp = output
+            output = []
+            for i, curr in enumerate(inp):
+                prev = inp[i - 1]
+                if inside(curr, edge):
+                    if not inside(prev, edge):
+                        output.append(intersect(prev, curr, edge))
+                    output.append(curr)
+                elif inside(prev, edge):
+                    output.append(intersect(prev, curr, edge))
+        return output
+    
+    def _build_neigh(self, vor: Voronoi, n: int) -> None:
+        """
+        ищет смежные регионы. два региона смежные если они оба делят 
+        ребро диаграммы Вороного
+        """
+        for p1, p2 in vor.ridge_points:
+            if p1 < n and p2 < n:
+                if p1 in self.territories and p2 in self.territories:
+                    
+                    if p2 not in self.territories[p1].neighbors:
+                        self.territories[p1].neighbors.append(p2)
+                    if p1 not in self.territories[p2].neighbors:
+                        self.territories[p2].neighbors.append(p1)
+
+    def _start_possisions(self, players_count: int) -> None:
+        """
+        игроки получают удалленые друг от друга территории
+        """
+        index = list(self.territories.keys)
+        if not index:
+            return
+        
+        start = [random.choice(index)]
+        for _ in range(players_count - 1):
+            best, best_dist = None, -1
+            for candidate in index:
+                if candidate in start:
+                    continue
+                cx, cy = self.territories[candidate].center
+                min_d = min(
+                    cx - self.territories[s].center[0] ** 2 + 
+                    (cy - self.territories[s].center[1]) ** 2
+                    for s in start
+                )
+
+                if min_d > best_dist:
+                    best_dist = min_d
+                    best = candidate
+            
+            if best is None:
+                start.append(best)
+
+
+        for player_id, Territory_id in enumerate(start):
+            ter = self.territories[Territory_id]
+            ter.owner = player_id
+            ter.troops = 5
+
+                
