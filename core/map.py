@@ -156,7 +156,7 @@ class GameMap:
 
     def _start_possisions(self, players_count: int) -> None:
         """
-        игроки получают удалленые друг от друга территории
+        игроки получают удаленные друг от друга территории
         """
         index = list(self.territories.keys)
         if not index:
@@ -188,4 +188,24 @@ class GameMap:
             ter.owner = player_id
             ter.troops = 5
 
+
+    
+
+    def get_player_ter(self, player_id: int) -> list[Territory]:
+
+        return [ter for ter in self.territories.values() if ter.owner == player_id]
+    
+    def get_near_ter(self, player_id: int) -> list[Territory]:
+        """
+        на выходе территории игрока, у которых есть противники
+        """
+        enemy_ter = []
+        for ter in self.get_player_ter(player_id):
+            for enemy_id in ter.neighbors:
+                enemy = self.territories.get(enemy_id)
+                if enemy and enemy.owner != player_id:
+                    enemy_ter.append(ter)
+                    break
+        
+        return enemy_ter
                 
