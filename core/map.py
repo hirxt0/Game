@@ -1,11 +1,25 @@
+"""
+    1) random points
+    2) lloyd relaxation
+    3) mirror points (искусственные)
+    4) Voronoi(all_points)
+    5) берём только первые n регионов
+    6) clip polygon (Сазерленд)
+    7) строим Territory
+    8) строим граф соседей
+    9) раздаём стартовые позиции
+"""
+
+
 from __future__ import annotations
 import random
 from collections import deque
+from typing import Optional
 
 import numpy as np
 from scipy.spatial import Voronoi
 
-from .territory import Territory
+from territory import Territory
 
 
 class GameMap:
@@ -29,9 +43,9 @@ class GameMap:
         """
         генерирует n случайных точек
         применяет релаксацию Ллойда, чтобы точки не были близко друг к другу
-        стоит диаграмму Вороного через scipy
-        обрезает регионы по границам
-        стоит граф смежности
+        строит диаграмму Вороного через scipy
+        обрезает регионы по границам через отзеркаливание
+        строит граф смежности
         """
 
         indent = 40
@@ -40,7 +54,7 @@ class GameMap:
             random.uniform(indent, self.height - indent)] for _ in range(n)
         ])
 
-        point = self._lloyd_relax(points, indent)
+        points = self._lloyd_relax(points, indent)
         mirrored = self._mirror_points(points)
         all_points = np.vstack([points, mirrored])
 
@@ -59,7 +73,7 @@ class GameMap:
             if len(clipped) < 3:
                 continue
 
-            ter = Territory(id=i, center=tuple(point[i]), vertices=clipped)
+            ter = Territory(id=i, center=tuple(points[i]), vertices=clipped)
             self.territories[i] = ter
         
         self._build_neigh(vor, n)
@@ -112,7 +126,8 @@ class GameMap:
             if edge == "bottom": return y <= self.height
 
         def intersect(p1, p2, edge):
-            x1, y1 = p1; x2, y2 = p2
+            x1, y1 = p1 
+            x2, y2 = p2
             dx, dy = x2 - x1, y2 - y1
             if edge == "left":
                 t = (0 - x1) / dx if dx else 0
@@ -158,7 +173,7 @@ class GameMap:
         """
         игроки получают удаленные друг от друга территории
         """
-        index = list(self.territories.keys)
+        index = list(self.territories.keys())
         if not index:
             return
         
@@ -170,7 +185,7 @@ class GameMap:
                     continue
                 cx, cy = self.territories[candidate].center
                 min_d = min(
-                    cx - self.territories[s].center[0] ** 2 + 
+                    (cx - self.territories[s].center[0]) ** 2 + 
                     (cy - self.territories[s].center[1]) ** 2
                     for s in start
                 )
@@ -179,7 +194,7 @@ class GameMap:
                     best_dist = min_d
                     best = candidate
             
-            if best is None:
+            if best is not None:
                 start.append(best)
 
 
@@ -208,4 +223,31 @@ class GameMap:
                     break
         
         return enemy_ter
-                
+            
+    def connected_ter(self, player_id: int) -> bool:
+        """
+        проверяет что все территории игрока связны
+        """
+        owned = [ter.id for ter in self.get_player_ter(player_id)]
+        if not owned:
+            return False
+        visited = set()
+        queue = deque([owned[0]])
+        while queue:
+            cur = queue.popleft()
+            if cur in visited:
+                continue
+            visited.add(cur)
+            for nb in self.territories[cur].neighbors:
+                if nb in self.territories and self.territories[nb].owner == player_id:
+                    queue.append(nb)
+        return len(visited) == len(owned)
+ 
+    def check_win(self) -> Optional[int]:
+        """
+        возвращает id победителя
+        """
+        owners = {ter.owner for ter in self.territories.values() if ter.owner is not None}
+        if len(owners) == 1:
+            return owners.pop()
+        return None
