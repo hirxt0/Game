@@ -10,8 +10,6 @@
     9) раздаём стартовые позиции
 """
 
-
-from __future__ import annotations
 import random
 from collections import deque
 from typing import Optional
@@ -39,7 +37,7 @@ class GameMap:
         self._start_possisions(players_count)
 
 
-    def _generate(self, n: int) -> None:
+    def _generate(self) -> None:
         """
         генерирует n случайных точек
         применяет релаксацию Ллойда, чтобы точки не были близко друг к другу
@@ -47,6 +45,8 @@ class GameMap:
         обрезает регионы по границам через отзеркаливание
         строит граф смежности
         """
+
+        n = self.chunk_count
 
         indent = 40
         points = np.array([
@@ -73,7 +73,10 @@ class GameMap:
             if len(clipped) < 3:
                 continue
 
-            ter = Territory(id=i, center=tuple(points[i]), vertices=clipped)
+            cx = sum(v[0] for v in clipped) / len(clipped)
+            cy = sum(v[1] for v in clipped) / len(clipped)
+
+            ter = Territory(id=i, center=(cx, cy), vertices=clipped)
             self.territories[i] = ter
         
         self._build_neigh(vor, n)
@@ -103,7 +106,7 @@ class GameMap:
         """
         отражает все точки на 4 стороны, 
         чтобы алгоритм Вороного работал корректно
-        """
+        """    
         w, h = self.widht, self.height
         return np.vstack([
             np.column_stack([-points[:, 0], points[:, 1]]),
@@ -120,10 +123,14 @@ class GameMap:
         def inside(p, edge):
             x, y = p
 
-            if edge == "left":   return x >= 0
-            if edge == "right":  return x <= self.widht
-            if edge == "top":    return y >= 0
-            if edge == "bottom": return y <= self.height
+            if edge == "left":
+                return x >= 0
+            if edge == "right":
+                return x <= self.widht
+            if edge == "top":
+                return y >= 0
+            if edge == "bottom":
+                return y <= self.height
 
         def intersect(p1, p2, edge):
             x1, y1 = p1 
