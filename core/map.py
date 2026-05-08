@@ -36,7 +36,7 @@ class GameMap:
         self._start_possisions(players_count)
 
 
-    def _generate(self) -> None:
+    def _generate(self, n: int) -> None:
         """
         генерирует n случайных точек
         применяет релаксацию Ллойда, чтобы точки не были близко друг к другу
@@ -44,8 +44,6 @@ class GameMap:
         обрезает регионы по границам через отзеркаливание
         строит граф смежности
         """
-
-        n = self.chunk_count
 
         indent = 40
         points = np.array([
@@ -75,7 +73,7 @@ class GameMap:
             cx = sum(v[0] for v in clipped) / len(clipped)
             cy = sum(v[1] for v in clipped) / len(clipped)
 
-            ter = Territory(id=i, center=(cx, cy), vertices=clipped)
+            ter = Territory(id=i, center=(cx, cy), vertices=clipped, neighbors=[])
             self.territories[i] = ter
         
         self._build_neigh(vor, n)
