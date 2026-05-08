@@ -12,7 +12,6 @@
 
 import random
 from collections import deque
-from typing import Optional
 
 import numpy as np
 from scipy.spatial import Voronoi
@@ -250,7 +249,7 @@ class GameMap:
                     queue.append(nb)
         return len(visited) == len(owned)
  
-    def check_win(self) -> Optional[int]:
+    def check_win(self) -> int | None:
         """
         возвращает id победителя
         """
