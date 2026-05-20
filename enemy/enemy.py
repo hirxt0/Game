@@ -1,5 +1,4 @@
 import heapq
-import random
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -10,7 +9,6 @@ if TYPE_CHECKING:
 class Enemy_Player:
     """
     жадный игрок с приоритетной очередью атак.
-
     оценка каждой возможной атаки
         score = (мои войска - войска врага) - 0.5 * риск соседей
     чем выше score, тем выгоднее атака
@@ -66,9 +64,8 @@ class Enemy_Player:
         """
         подсчет выгоды атаки
         """
-        power = (src.troops - 1) - tgt.troops  # сила атаки
+        power = (src.troops - 1) - tgt.troops  
 
-        # риск: сумма войск врагов вокруг цели (кроме нас)
         risk = sum(
             game_map.territories[nb].troops
             for nb in tgt.neighbors
@@ -76,4 +73,4 @@ class Enemy_Player:
             and game_map.territories[nb].owner not in (None, self.player_id, tgt.owner)
         )
 
-        return self.aggression * power - 0.5 * risk
+        return self.aggression * power - 0.25 * risk
