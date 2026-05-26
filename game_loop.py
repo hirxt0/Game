@@ -238,9 +238,6 @@ class GameLoop:
 
         self.pending_attack = (from_id, to_id, troops, owner_id)
 
-    # ------------------------------------------------------------------
-    # Применение результата боя (вызывается после анимации)
-    # ------------------------------------------------------------------
 
     def _resolve_attack(self, from_id: int, to_id: int, troops: int) -> None:
         src = self.game_map.territories[from_id]
@@ -253,9 +250,6 @@ class GameLoop:
 
         self.winner = self.game_map.check_win()
 
-    # ------------------------------------------------------------------
-    # Ход ИИ
-    # ------------------------------------------------------------------
 
     def _ai_turn(self) -> None:
         now = time.monotonic()
@@ -275,15 +269,11 @@ class GameLoop:
                 from_id, to_id, _ = move
                 self._launch_attack(from_id, to_id, owner_id=self.current_player)
                 self._last_ai_time = now
-                return  # ждём анимацию — _next_player вызовется из _update_animations
+                return 
 
-        # Нет хода — просто переходим
         self._last_ai_time = now
         self._next_player()
 
-    # ------------------------------------------------------------------
-    # Смена хода
-    # ------------------------------------------------------------------
 
     def _next_player(self) -> None:
         if self.winner is not None:

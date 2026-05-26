@@ -1,7 +1,5 @@
 import math
 import pygame
-from typing import Optional
-import pygame
 import os
 
  
