@@ -16,7 +16,7 @@ from collections import deque
 import numpy as np
 from scipy.spatial import Voronoi
 
-from territory import Territory
+from .territory import Territory
 
 
 class GameMap:
@@ -162,7 +162,7 @@ class GameMap:
     def _build_neigh(self, vor: Voronoi, n: int) -> None:
         """
         ищет смежные регионы. два региона смежные если они оба делят 
-        ребро диаграммы Вороного
+        ребро диаграммы   Вороного
         """
         for p1, p2 in vor.ridge_points:
             if p1 < n and p2 < n:

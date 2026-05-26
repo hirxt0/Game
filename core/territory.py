@@ -15,7 +15,7 @@ class Territory:
     def is_neutral(self) -> bool:
         return self.owner is None
  
-    def can_attack(self, target: Territory) -> bool:
+    def can_attack(self, target: 'Territory') -> bool:
         return target.id in self.neighbors and target.owner != self.owner
  
     def resolve_attack(self, attacker_troops: int) -> bool:

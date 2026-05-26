@@ -1,10 +1,9 @@
 import heapq
-import random
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 
-if TYPE_CHECKING:
-    from ..core.map import GameMap
-    from ..core.territory import Territory
+
+from core.map import GameMap
+from core.territory import Territory
 
 
 class Enemy_Player:
