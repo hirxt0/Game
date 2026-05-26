@@ -11,7 +11,7 @@ from animation import Soldier, Explosion
 
 SCREEN_W, SCREEN_H = 1200, 800
 NUM_TERRITORIES = 40
-NUM_AI = 2
+NUM_AI = 3
 AI_TURN_DELAY = 1.0
 FPS = 60
 PLAYER_ID = 0
