@@ -43,11 +43,12 @@ class GameLoop:
         ]
 
         self.renderer = Renderer(self.screen)
+        Explosion.load_frames(EXPLOSION_FOLDER)
 
-        try:
-            Explosion.load_frames(EXPLOSION_FOLDER)
-        except Exception as e:
-            print(f"[warn] не удалось загрузить спрайтшит: {e}")
+
+        pygame.mixer.init()
+        self.attack_sound = pygame.mixer.Sound("assets/babax.mp3")
+        self.attack_sound.set_volume(0.6)
 
         self.current_player: int = PLAYER_ID
         self.turn: int = 1
@@ -124,7 +125,13 @@ class GameLoop:
         for ex in self.explosions:
             ex.draw(self.screen)
 
-        self.renderer.draw_ui(self.turn, self.current_player, self.winner)
+        self.renderer.draw_ui(
+            self.turn,
+            self.current_player,
+            self.winner,
+            game_map=self.game_map,              
+            num_players=1 + len(self.ai_players) 
+        )
         pygame.display.flip()
 
 
@@ -240,6 +247,8 @@ class GameLoop:
 
 
     def _resolve_attack(self, from_id: int, to_id: int, troops: int) -> None:
+        if self.attack_sound:
+            self.attack_sound.play()
         src = self.game_map.territories[from_id]
         tgt = self.game_map.territories[to_id]
 
