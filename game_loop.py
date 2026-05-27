@@ -4,7 +4,7 @@ from typing import Optional
 
 from core.map import GameMap
 from core.territory import Territory
-from enemy.enemy import Enemy_Player
+from enemy.enemy import Enemy_Player, DefensivePlayer, AllyPlayer
 from render.render import Renderer
 from animation import Soldier, Explosion
 
@@ -38,8 +38,9 @@ class GameLoop:
         self.game_map = GameMap(SCREEN_W, SCREEN_H - 40, NUM_TERRITORIES, num_players)
 
         self.ai_players = [
-            Enemy_Player(player_id=i + 1, aggression=0.8 + i * 0.3)
-            for i in range(NUM_AI)
+            AllyPlayer(player_id=1, aggression=1.0),    
+            DefensivePlayer(player_id=2),                
+            Enemy_Player(player_id=3, aggression=1.2),   
         ]
 
         self.renderer = Renderer(self.screen)

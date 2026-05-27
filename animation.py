@@ -64,7 +64,7 @@ class Explosion:
                     os.path.join(folder, file)
                 ).convert_alpha()
 
-                img = pygame.transform.scale(img, (60, 60))
+                img = pygame.transform.scale(img, (180, 180))
 
                 cls.frames.append(img)
 

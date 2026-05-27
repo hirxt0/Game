@@ -65,15 +65,11 @@ class GameMap:
                 continue
 
             vertices = [tuple(vor.vertices[i]) for i in region]
-            clipped = self._clip_polygon(vertices)
 
-            if len(clipped) < 3:
-                continue
+            cx = sum(v[0] for v in vertices) / len(vertices)
+            cy = sum(v[1] for v in vertices) / len(vertices)
 
-            cx = sum(v[0] for v in clipped) / len(clipped)
-            cy = sum(v[1] for v in clipped) / len(clipped)
-
-            ter = Territory(id=i, center=(cx, cy), vertices=clipped, neighbors=[])
+            ter = Territory(id=i, center=(cx, cy), vertices=vertices, neighbors=[])
             self.territories[i] = ter
         
         self._build_neigh(vor, n)
@@ -111,53 +107,6 @@ class GameMap:
             np.column_stack([points[:, 0], -points[:, 1]]),
             np.column_stack([points[:, 0], 2 * h - points[:, 1]])
         ])
-    
-    def _clip_polygon(self, vertices: list[tuple]) -> list[tuple]:
-        """
-        алгоритм Сазерленда-Хогмана: обрезка по прямоугольнику экрана
-        """
-
-        def inside(p, edge):
-            x, y = p
-
-            if edge == "left":
-                return x >= 0
-            if edge == "right":
-                return x <= self.widht
-            if edge == "top":
-                return y >= 0
-            if edge == "bottom":
-                return y <= self.height
-
-        def intersect(p1, p2, edge):
-            x1, y1 = p1 
-            x2, y2 = p2
-            dx, dy = x2 - x1, y2 - y1
-            if edge == "left":
-                t = (0 - x1) / dx if dx else 0
-            elif edge == "right":
-                t = (self.widht - x1) / dx if dx else 0
-            elif edge == "top":
-                t = (0 - y1) / dy if dy else 0
-            else:
-                t = (self.height - y1) / dy if dy else 0
-            return (x1 + t * dx, y1 + t * dy)
- 
-        output = list(vertices)
-        for edge in ("left", "right", "top", "bottom"):
-            if not output:
-                break
-            inp = output
-            output = []
-            for i, curr in enumerate(inp):
-                prev = inp[i - 1]
-                if inside(curr, edge):
-                    if not inside(prev, edge):
-                        output.append(intersect(prev, curr, edge))
-                    output.append(curr)
-                elif inside(prev, edge):
-                    output.append(intersect(prev, curr, edge))
-        return output
     
     def _build_neigh(self, vor: Voronoi, n: int) -> None:
         """
