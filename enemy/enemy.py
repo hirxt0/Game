@@ -68,19 +68,17 @@ class DefensivePlayer:
     - Никогда не уходит в ноль — держит RESERVE солдат дома.
     """
 
-    ATTACK_RATIO = 2.5   # атакуем только если у нас в 2.5 раза больше войск
-    RESERVE = 2          # минимум солдат остаётся на территории
+    ATTACK_RATIO = 2.5   
+    RESERVE = 2          
 
     def __init__(self, player_id: int):
         self.player_id = player_id
 
     def take_turn(self, game_map: GameMap) -> Optional[tuple[int, int, int]]:
-        # Сначала пробуем найти безопасную атаку
         attack = self._find_safe_attack(game_map)
         if attack:
             return attack
 
-        # Иначе — укрепляем самую уязвимую территорию
         return self._reinforce(game_map)
 
     def _find_safe_attack(self, game_map: GameMap) -> Optional[tuple[int, int, int]]:
@@ -168,7 +166,6 @@ class AllyPlayer:
                 continue
             if tgt.owner == self.player_id:
                 continue
-            # Ключевое условие — не атакуем союзника
             if tgt.owner == self.ALLY_OF:
                 continue
 
