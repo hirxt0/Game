@@ -7,8 +7,8 @@ from core.territory import Territory
 
 class Enemy_Player:
     """
-    Жадный ИИ с приоритетной очередью атак.
-    score = (мои войска - войска врага) - 0.5 * риск соседей
+    обычный бот с приоритетной очередью атак+
+    сила атаки = (агрессия * кол-во вражеских войск у границы) - 0.5 * риск соседей
     """
 
     def __init__(self, player_id: int, aggression: float = 1.0):
@@ -60,16 +60,10 @@ class Enemy_Player:
 
 class DefensivePlayer:
     """
-    Защитный ИИ.
-
-    Логика:
-    - Укрепляет самую уязвимую границу (территорию где врагов больше всего).
-    - Атакует только если имеет подавляющее превосходство (>= ATTACK_RATIO).
-    - Никогда не уходит в ноль — держит RESERVE солдат дома.
+    бот который защищается
+    пытается укрепить незащищенные территории
     """
-
-    ATTACK_RATIO = 2.5   
-    RESERVE = 2          
+           
 
     def __init__(self, player_id: int):
         self.player_id = player_id
@@ -82,12 +76,12 @@ class DefensivePlayer:
         return self._reinforce(game_map)
 
     def _find_safe_attack(self, game_map: GameMap) -> Optional[tuple[int, int, int]]:
-        """Атакуем только если у нас явное превосходство."""
+        """атака если превосходим врага в 1.1 раза"""
         best = None
-        best_ratio = self.ATTACK_RATIO
+        best_ratio = 1.1
 
         for src in game_map.get_near_ter(self.player_id):
-            troops_available = src.troops - self.RESERVE
+            troops_available = src.troops - 2
             if troops_available < 1:
                 continue
 
@@ -108,9 +102,7 @@ class DefensivePlayer:
     def _reinforce(self, game_map: GameMap) -> Optional[tuple[int, int, int]]:
         """
         перекидываем войска с безопасной внутренней территории
-        на самую уязвимую пограничную.
-        Возвращаем ход как атаку на свою территорию — game_loop должен
-        это поддерживать, иначе вернём None.
+        на самую уязвимую пограничную
         """
         border = game_map.get_near_ter(self.player_id)
         if not border:
@@ -130,9 +122,8 @@ class DefensivePlayer:
             nb = game_map.territories.get(nb_id)
             if not nb or nb.owner != self.player_id:
                 continue
-            available = nb.troops - self.RESERVE
+            available = nb.troops - 2
             if available >= 1:
-
                 nb.troops -= available
                 most_threatened.troops += available
                 return None  
@@ -140,14 +131,11 @@ class DefensivePlayer:
         return None
 
 
-class AllyPlayer:
+class FriendlyPLayer(Enemy_Player):
     """
-    Союзный ИИ — никогда не атакует игрока (PLAYER_ID = 0).
-    В остальном ведёт себя как жадный ИИ.
+    бот, который никогда не нападает на тебя
     """
-
-    ALLY_OF = 0   
-
+  
     def __init__(self, player_id: int, aggression: float = 1.0):
         self.player_id = player_id
         self.aggression = aggression
@@ -166,34 +154,9 @@ class AllyPlayer:
                 continue
             if tgt.owner == self.player_id:
                 continue
-            if tgt.owner == self.ALLY_OF:
+            if tgt.owner == 0:
                 continue
 
             return (from_id, to_id, src.troops - 1)
 
         return None
-
-    def _build_attack_queue(self, game_map: GameMap) -> list:
-        heap = []
-        for src in game_map.get_near_ter(self.player_id):
-            if src.troops < 2:
-                continue
-            for nb_id in src.neighbors:
-                tgt = game_map.territories.get(nb_id)
-                if not tgt or tgt.owner == self.player_id:
-                    continue
-                if tgt.owner == self.ALLY_OF:
-                    continue
-                score = self._evaluate(src, tgt, game_map)
-                heapq.heappush(heap, (-score, src.id, tgt.id))
-        return heap
-
-    def _evaluate(self, src: Territory, tgt: Territory, game_map: GameMap) -> float:
-        power = (src.troops - 1) - tgt.troops
-        risk = sum(
-            game_map.territories[nb].troops
-            for nb in tgt.neighbors
-            if nb in game_map.territories
-            and game_map.territories[nb].owner not in (None, self.player_id, tgt.owner)
-        )
-        return self.aggression * power - 0.5 * risk
