@@ -4,17 +4,13 @@ from typing import Optional
 
 from core.map import GameMap
 from core.territory import Territory
-from enemy.enemy import Enemy_Player, DefensivePlayer, AllyPlayer
+from enemy.enemy import Enemy_Player, DefensivePlayer, FriendlyPLayer 
 from render.render import Renderer
 from animation import Soldier, Explosion
 
 
 SCREEN_W, SCREEN_H = 1200, 800
-NUM_TERRITORIES = 40
-NUM_AI = 3
 AI_TURN_DELAY = 1.0
-FPS = 60
-PLAYER_ID = 0
 SOLDIER_DELAY = 0.08   
 
 PLAYER_COLORS = [
@@ -24,62 +20,55 @@ PLAYER_COLORS = [
     (200, 160,  40),
 ]
 
-EXPLOSION_FOLDER = "assets/explosion"
-
 
 class GameLoop:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
-        pygame.display.set_caption("Territory Wars")
+        pygame.display.set_caption("Game")
         self.clock = pygame.time.Clock()
 
-        num_players = 1 + NUM_AI
-        self.game_map = GameMap(SCREEN_W, SCREEN_H - 40, NUM_TERRITORIES, num_players)
+        num_players = 4
+        self.game_map = GameMap(SCREEN_W, SCREEN_H - 40, 40, num_players)
 
-        self.ai_players = [
-            AllyPlayer(player_id=1, aggression=1.0),    
+        self.bots = [
+         FriendlyPLayer(player_id=1, aggression=1.0),    
             DefensivePlayer(player_id=2),                
             Enemy_Player(player_id=3, aggression=1.2),   
         ]
 
         self.renderer = Renderer(self.screen)
-        Explosion.load_frames(EXPLOSION_FOLDER)
+        Explosion.load_frames("assets/explosion")
 
 
         pygame.mixer.init()
         self.attack_sound = pygame.mixer.Sound("assets/babax.mp3")
         self.attack_sound.set_volume(0.6)
-
-        self.current_player: int = PLAYER_ID
+        self.current_player: int = 0
         self.turn: int = 1
         self.winner: Optional[int] = None
-
         self.selected_id: Optional[int] = None
         self.attackable: set[int] = set()
-
         self.soldiers: list[Soldier] = []
         self.explosions: list[Explosion] = []
-
         self.pending_attack: Optional[tuple[int, int, int, int]] = None
-
-        self._last_ai_time: float = 0.0
+        self._last_bot_time: float = 0.0
         self._troops_distributed_this_round: bool = False
         self._last_player_turn_time: float = time.monotonic()
 
 
     def run(self) -> None:
         while True:
-            dt = self.clock.tick(FPS) / 1000.0
+            dt = self.clock.tick(60) / 1000.0
 
             self._handle_events()
             self._update_animations(dt)
 
             if self.winner is None and not self._animation_running():
-                if self.current_player == PLAYER_ID:
+                if self.current_player == 0:
                     pass
                 else:
-                    self._ai_turn()
+                    self._bot_turn()
 
             self._render()
 
@@ -93,7 +82,6 @@ class GameLoop:
             s.update(dt)
 
         arrived_positions = [s.end for s in self.soldiers if s.arrived]
-
         self.soldiers = [s for s in self.soldiers if not s.arrived]
 
         if arrived_positions and not self.soldiers:
@@ -112,7 +100,6 @@ class GameLoop:
             self._next_player()
 
 
-
     def _render(self) -> None:
         self.renderer.draw_map(
             self.game_map,
@@ -126,13 +113,8 @@ class GameLoop:
         for ex in self.explosions:
             ex.draw(self.screen)
 
-        self.renderer.draw_ui(
-            self.turn,
-            self.current_player,
-            self.winner,
-            game_map=self.game_map,              
-            num_players=1 + len(self.ai_players) 
-        )
+        self.renderer.draw_ui(self.turn, self.current_player, self.winner,
+                              game_map=self.game_map, num_players=1 + len(self.bots) )
         pygame.display.flip()
 
 
@@ -150,7 +132,7 @@ class GameLoop:
             if (
                 event.type == pygame.MOUSEBUTTONDOWN
                 and event.button == 1
-                and self.current_player == PLAYER_ID
+                and self.current_player == 0
                 and self.winner is None
                 and not self._animation_running()
             ):
@@ -166,44 +148,40 @@ class GameLoop:
         clicked = self.game_map.territories[clicked_id]
 
         if self.selected_id is None:
-            if clicked.owner == PLAYER_ID and clicked.troops >= 2:
+            if clicked.owner == 0 and clicked.troops >= 2:
                 self.selected_id = clicked_id
-                self.attackable = {
-                    nb for nb in clicked.neighbors
+                self.attackable = {nb for nb in clicked.neighbors
                     if self.game_map.territories.get(nb)
-                    and self.game_map.territories[nb].owner != PLAYER_ID
-                }
+                    and self.game_map.territories[nb].owner != 0}
             return
 
         if clicked_id in self.attackable:
-            self._launch_attack(self.selected_id, clicked_id, owner_id=PLAYER_ID)
+            self._launch_attack(self.selected_id, clicked_id, owner_id=0)
             self._deselect()
             self._last_player_turn_time = time.monotonic()
             return
 
 
-        if (
-            clicked.owner == PLAYER_ID
+        if (clicked.owner == 0
             and clicked_id != self.selected_id
-            and clicked_id in self.game_map.territories[self.selected_id].neighbors
-        ):
+            and clicked_id in self.game_map.territories[self.selected_id].neighbors):
             self._move_troops(self.selected_id, clicked_id)
             self._deselect()
             return
         
-        elif clicked.owner == PLAYER_ID and clicked.troops >= 2:
+        elif clicked.owner == 0 and clicked.troops >= 2:
             self.selected_id = clicked_id
             self.attackable = {
                 nb for nb in clicked.neighbors
                 if self.game_map.territories.get(nb)
-                and self.game_map.territories[nb].owner != PLAYER_ID
+                and self.game_map.territories[nb].owner != 0
             }
         else:
             self._deselect()
 
     def _territory_at(self, pos: tuple[int, int]) -> Optional[int]:
         px, py = pos
-        best_id, best_dist = None, float("inf")
+        best_id, best_dist = None, 10**10
         for t in self.game_map.territories.values():
             dx = px - t.center[0]
             dy = py - t.center[1]
@@ -225,7 +203,6 @@ class GameLoop:
             return
 
         moving = src.troops // 2
-
         src.troops -= moving
         tgt.troops += moving
 
@@ -240,7 +217,7 @@ class GameLoop:
             self.soldiers.append(Soldier(
                 start=src.center,
                 end=tgt.center,
-                delay=i * SOLDIER_DELAY,
+                delay=i * 0.08,
                 color=color,
             ))
 
@@ -261,20 +238,17 @@ class GameLoop:
         self.winner = self.game_map.check_win()
 
 
-    def _ai_turn(self) -> None:
+    def _bot_turn(self) -> None:
         now = time.monotonic()
 
         if now - self._last_player_turn_time < 0.5:
             return
-        if now - self._last_ai_time < AI_TURN_DELAY:
+        if now - self._last_bot_time < 1:
             return
 
-        ai = next(
-            (a for a in self.ai_players if a.player_id == self.current_player),
-            None,
-        )
-        if ai:
-            move = ai.take_turn(self.game_map)
+        bot = next((a for a in self.bots if a.player_id == self.current_player), None)
+        if bot:
+            move = bot.take_turn(self.game_map)
             if move:
                 from_id, to_id, _ = move
                 self._launch_attack(from_id, to_id, owner_id=self.current_player)
@@ -289,7 +263,7 @@ class GameLoop:
         if self.winner is not None:
             return
 
-        num_players = 1 + len(self.ai_players)
+        num_players = 1 + len(self.bots)
         self.current_player = (self.current_player + 1) % num_players
 
         for _ in range(num_players):
@@ -299,7 +273,7 @@ class GameLoop:
 
         self._regenerate_troops()
 
-        if self.current_player == PLAYER_ID:
+        if self.current_player == 0:
             self.turn += 1
             self._troops_distributed_this_round = False
             self._distribute_troops()
@@ -313,7 +287,7 @@ class GameLoop:
             return
         self._troops_distributed_this_round = True
 
-        num_players = 1 + len(self.ai_players)
+        num_players = 1 + len(self.bots)
         for pid in range(num_players):
             territories = self.game_map.get_player_ter(pid)
             if not territories:
