@@ -15,7 +15,7 @@ class Enemy_Player:
         self.player_id = player_id
         self.aggression = aggression
 
-    def take_turn(self, game_map: GameMap) -> Optional[tuple[int, int, int]]:
+    def take_turn(self, game_map: GameMap) -> tuple[int, int, int] | None:
         candidates = self._build_attack_queue(game_map)
 
         while candidates:
@@ -68,14 +68,14 @@ class DefensivePlayer:
     def __init__(self, player_id: int):
         self.player_id = player_id
 
-    def take_turn(self, game_map: GameMap) -> Optional[tuple[int, int, int]]:
+    def take_turn(self, game_map: GameMap) -> tuple[int, int, int] | None:
         attack = self._find_safe_attack(game_map)
         if attack:
             return attack
 
         return self._reinforce(game_map)
 
-    def _find_safe_attack(self, game_map: GameMap) -> Optional[tuple[int, int, int]]:
+    def _find_safe_attack(self, game_map: GameMap) -> tuple[int, int, int] | None:
         """атака если превосходим врага в 1.1 раза"""
         best = None
         best_ratio = 1.1
@@ -99,7 +99,7 @@ class DefensivePlayer:
 
         return best
 
-    def _reinforce(self, game_map: GameMap) -> Optional[tuple[int, int, int]]:
+    def _reinforce(self, game_map: GameMap) -> tuple[int, int, int] | None:
         """
         перекидываем войска с безопасной внутренней территории
         на самую уязвимую пограничную
@@ -140,7 +140,7 @@ class FriendlyPLayer(Enemy_Player):
         self.player_id = player_id
         self.aggression = aggression
 
-    def take_turn(self, game_map: GameMap) -> Optional[tuple[int, int, int]]:
+    def take_turn(self, game_map: GameMap) -> tuple[int, int, int] | None:
         candidates = self._build_attack_queue(game_map)
 
         while candidates:

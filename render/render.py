@@ -1,5 +1,4 @@
 import pygame
-from typing import Optional
  
 from core.map import GameMap
 from core.territory import Territory
@@ -18,12 +17,8 @@ class Renderer:
         self.font = pygame.font.SysFont("monospace", 14, bold=True)
         self.font_small = pygame.font.SysFont("monospace", 11, bold=True)
  
-    def draw_map(
-        self,
-        game_map: GameMap,
-        selected_id: Optional[int] = None,
-        attackable_ids: Optional[set[int]] = None,
-    ) -> None:
+    def draw_map(self, game_map: GameMap, selected_id: int | None = None,
+                 attackable_ids: set[int] | None = None) -> None:
         self.screen.fill((20, 20, 20))
         attackable_ids = attackable_ids or set()
  
@@ -33,9 +28,8 @@ class Renderer:
         for t in game_map.territories.values():
             self._draw_troops(t)
  
-    def _draw_territory(self, t: Territory, selected_id: Optional[int],
-                        attackable_ids: set[int],
-    ) -> None:
+    def _draw_territory(self, t: Territory, selected_id: int | None,
+                        attackable_ids: set[int]) -> None:
         if len(t.vertices) < 3:
             return
  
@@ -61,7 +55,7 @@ class Renderer:
         pygame.draw.rect(self.screen, (0, 0, 0, 160), bg, border_radius=3)
         self.screen.blit(text, rect)
  
-    def _draw_territory_bar(self, game_map: "GameMap", num_players: int) -> None:
+    def draw_territory_bar(self, game_map: "GameMap", num_players: int) -> None:
         sw = self.screen.get_width()
         sh = self.screen.get_height()
  

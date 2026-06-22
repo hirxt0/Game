@@ -1,7 +1,7 @@
 import pygame
 import os
 
- 
+
 class Soldier:       
 
     def __init__(self, start: tuple[float, float], end: tuple[float, float],

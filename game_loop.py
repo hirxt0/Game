@@ -1,6 +1,5 @@
 import pygame
 import time
-from typing import Optional
 
 from core.map import GameMap
 from core.territory import Territory
@@ -9,27 +8,21 @@ from render.render import Renderer
 from animation import Soldier, Explosion
 
 
-SCREEN_W, SCREEN_H = 1200, 800
-AI_TURN_DELAY = 1.0
-SOLDIER_DELAY = 0.08   
-
-PLAYER_COLORS = [
-    (70,  130, 200),
-    (200,  70,  70),
-    (80,  180,  80),
-    (200, 160,  40),
-]
+PLAYER_COLORS = [(70,  130, 200),
+                 (200,  70,  70),
+                 (80,  180,  80),
+                 (200, 160,  40)]
 
 
 class GameLoop:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
+        self.screen = pygame.display.set_mode((1200, 800 ))
         pygame.display.set_caption("Game")
         self.clock = pygame.time.Clock()
 
         num_players = 4
-        self.game_map = GameMap(SCREEN_W, SCREEN_H - 40, 40, num_players)
+        self.game_map = GameMap(1200, 760, 40, num_players)
 
         self.bots = [
          FriendlyPLayer(player_id=1, aggression=1.0),    
@@ -39,22 +32,20 @@ class GameLoop:
 
         self.renderer = Renderer(self.screen)
         Explosion.load_frames("assets/explosion")
-
-
         pygame.mixer.init()
         self.attack_sound = pygame.mixer.Sound("assets/babax.mp3")
         self.attack_sound.set_volume(0.6)
-        self.current_player: int = 0
-        self.turn: int = 1
-        self.winner: Optional[int] = None
-        self.selected_id: Optional[int] = None
-        self.attackable: set[int] = set()
-        self.soldiers: list[Soldier] = []
-        self.explosions: list[Explosion] = []
-        self.pending_attack: Optional[tuple[int, int, int, int]] = None
-        self._last_bot_time: float = 0.0
-        self._troops_distributed_this_round: bool = False
-        self._last_player_turn_time: float = time.monotonic()
+        self.current_player = 0
+        self.turn = 1
+        self.winner = None
+        self.selected_id = None
+        self.attackable = set()
+        self.soldiers = []
+        self.explosions = []
+        self.pending_attack = None
+        self._last_bot_time = 0.0
+        self._troops_distributed_this_round = False
+        self._last_player_turn_time = time.monotonic()
 
 
     def run(self) -> None:
@@ -113,8 +104,7 @@ class GameLoop:
         for ex in self.explosions:
             ex.draw(self.screen)
 
-        self.renderer.draw_ui(self.turn, self.current_player, self.winner,
-                              game_map=self.game_map, num_players=1 + len(self.bots) )
+        self.renderer.draw_territory_bar(game_map=self.game_map, num_players=1 + len(self.bots))
         pygame.display.flip()
 
 
@@ -129,13 +119,11 @@ class GameLoop:
                 self.__init__()
                 return
 
-            if (
-                event.type == pygame.MOUSEBUTTONDOWN
+            if (event.type == pygame.MOUSEBUTTONDOWN
                 and event.button == 1
                 and self.current_player == 0
                 and self.winner is None
-                and not self._animation_running()
-            ):
+                and not self._animation_running()):
                 self._handle_click(event.pos)
 
     def _handle_click(self, pos: tuple[int, int]) -> None:
@@ -174,12 +162,11 @@ class GameLoop:
             self.attackable = {
                 nb for nb in clicked.neighbors
                 if self.game_map.territories.get(nb)
-                and self.game_map.territories[nb].owner != 0
-            }
+                and self.game_map.territories[nb].owner != 0}
         else:
             self._deselect()
 
-    def _territory_at(self, pos: tuple[int, int]) -> Optional[int]:
+    def _territory_at(self, pos: tuple[int, int]) -> int | None:
         px, py = pos
         best_id, best_dist = None, 10**10
         for t in self.game_map.territories.values():
@@ -218,8 +205,7 @@ class GameLoop:
                 start=src.center,
                 end=tgt.center,
                 delay=i * 0.08,
-                color=color,
-            ))
+                color=color))
 
         self.pending_attack = (from_id, to_id, troops, owner_id)
 
@@ -240,7 +226,6 @@ class GameLoop:
 
     def _bot_turn(self) -> None:
         now = time.monotonic()
-
         if now - self._last_player_turn_time < 0.5:
             return
         if now - self._last_bot_time < 1:
